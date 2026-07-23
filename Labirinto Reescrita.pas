@@ -14,7 +14,6 @@ function ValorASCII(cCaracter : char) : integer;         //transforma os dígitos
 var
 i, ascii  : integer;
 begin
-  i:= dig;
   ascii := ord(cCaracter);
   case ascii of
   	48..57 :  {números}
@@ -28,8 +27,7 @@ begin
   		end;
 
   	else
-  	ValorASCII := 0;
-  	
+  	ValorASCII := 0;	
   end;                         
 end;
 
@@ -71,8 +69,101 @@ begin
   if sZero = '0' then
     transformar0em10 := 10
   else
+  begin
     val(sZero, outro, inutil);
     transformar0em10 := outro;
+  end;
+end;
+
+function Parede(iX, iY: integer): string;
+var 
+  iSoma : integer;
+  bDiagSupEsq, bDiagInfEsq, bDiagSupDir, bDiagInfDir : boolean;
+begin
+  iSoma := 0;
+
+  // Vizinhos Ortogonais Diretos (Soma clássica)
+  if (iX < 10) and MatrizMapa[iX+1, iY] then inc(iSoma, 1); // Direita
+  if (iX > 1)  and MatrizMapa[iX-1, iY] then inc(iSoma, 2); // Esquerda
+  if (iY < 10) and MatrizMapa[iX, iY+1] then inc(iSoma, 4); // Baixo
+  if (iY > 1)  and MatrizMapa[iX, iY-1] then inc(iSoma, 8); // Cima
+
+  // Mapeamento das Diagonais Internas
+  bDiagSupEsq := (iX > 1)  and (iY > 1)  and MatrizMapa[iX-1, iY-1];
+  bDiagInfEsq := (iX > 1)  and (iY < 10) and MatrizMapa[iX-1, iY+1];
+  bDiagSupDir := (iX < 10) and (iY > 1)  and MatrizMapa[iX+1, iY-1];
+  bDiagInfDir := (iX < 10) and (iY < 10) and MatrizMapa[iX+1, iY+1];
+
+  case iSoma of
+    // --- PILAR / BLOCO ISOLADO OU CONECTADO À MOLDURA ---
+    0: 
+    begin
+      if (iY = 1) or (iY = 10) then
+        Parede := #186 + ' '    { ¦  Haste vertical descendo do teto / subindo do chão }
+      else if (iX = 1) or (iX = 10) then
+        Parede := #205 + #205   { -- Haste horizontal conectando nas laterais }
+      else
+        Parede := '[]';         { Blocos isolados no meio do mapa continuam [] }
+    end;
+
+    // --- PONTAS HORIZONTAIS ---
+    2: 
+    begin
+      if bDiagSupDir and bDiagInfDir then Parede := #205 + #185
+      else if bDiagSupDir then Parede := #205 + #188
+      else if bDiagInfDir then Parede := #205 + #187
+      else Parede := #205 + '=';
+    end;
+
+    1: 
+    begin
+      if bDiagSupEsq and bDiagInfEsq then Parede := #204 + #205
+      else if bDiagSupEsq then Parede := #200 + #205
+      else if bDiagInfEsq then Parede := #201 + #205
+      else Parede := '=' + #205;
+    end;
+
+    // --- PONTAS VERTICAIS ---
+    8:
+    begin
+      if bDiagSupEsq then Parede := #202 + #205
+      else if bDiagInfEsq then Parede := #188 + ' '
+      else if bDiagInfDir then Parede := #187 + ' '
+      else Parede := #186 + ' ';
+    end;
+
+    4:
+    begin
+      if bDiagSupEsq then Parede := #200 + #205
+      else if bDiagSupDir then Parede := #201 + #205
+      else if bDiagInfEsq then Parede := #203 + #205
+      else Parede := #186 + ' ';
+    end;
+
+    // --- CANTOS ---
+    5:  Parede := #201 + #205; { +- }
+    6:  Parede := #187 + ' ';  { +  }
+    9:  if bDiagInfEsq then Parede := #202 + #205 else Parede := #200 + #205; { +- ou -- }
+    10: if bDiagInfDir then Parede := #202 + #205 else Parede := #188 + ' ';  { +  ou -- }
+
+    // --- PAREDES RETAS E ENTROUNCAMENTOS ---
+    3:  Parede := #205 + #205; { -- }
+    12: Parede := #186 + ' ';  { ¦  }
+    7:  Parede := #203 + #205; { -- }
+    11: Parede := #202 + #205; { -- }
+    13: Parede := #204 + #205; { ¦- }
+    14: Parede := #185 + ' ';  { ¦  }
+    15: Parede := #206 + #205; { +- }
+
+    else Parede := #205 + #205;
+  end;
+end;
+
+procedure IrPara(iX, iY: integer);
+begin
+  // Como a moldura ocupa a linha 1 e coluna 1,
+  // somamos +1 nas coordenadas virtuais do jogo.
+  gotoxy((iX - 1) * 2 + 2, iY + 1);
 end;
 
 procedure GerarMatrizBOOLEAN;
@@ -106,29 +197,50 @@ begin
 end; 
 
 procedure DesenharMoldura;
+var
+  iX, iY : integer;
 begin
-//Bordas
-	write (#201); 				{Canto superior direito}
-	for x := 1 to 20 do
-	begin
-		gotoxy (x + 1, 1);    {Borda de cima}
-		write (#205); 
-		gotoxy (x + 1, 12);   {Borda de baixo}
-		write (#205);
-	end;
-		gotoxy (22, 1);       {Canto superior esquerdo}
-		write (#187);
-		gotoxy (22, 12);      {Canto inferior direito}
-		write (#188);
-		gotoxy (1, 12);       {Canto superior esquerdo}
-		write (#200);
-	for y := 1 to 10 do
-	begin
-		gotoxy (1, y + 1);    {Borda da esquerda}
-		write (#186);
-		gotoxy (22, y + 1);   {Borda da direita}
-		write (#186);
-	end;
+  // 1. Cantos principais da moldura
+  gotoxy(1, 1);    write(#201); { + }
+  gotoxy(22, 1);   write(#187); { + }
+  gotoxy(1, 12);   write(#200); { + }
+  gotoxy(22, 12);  write(#188); { + }
+
+  // 2. Teto e Chão Dinâmicos
+  for iX := 1 to 10 do
+  begin
+    // Teto (Linha 1 da tela)
+    gotoxy((iX - 1) * 2 + 2, 1);
+    if MatrizMapa[iX, 1] then
+      write(#203, #205)   { -- Encaixe perfeito! }
+    else
+      write(#205, #205);  { -- Moldura contínua }
+
+    // Chão (Linha 12 da tela)
+    gotoxy((iX - 1) * 2 + 2, 12);
+    if MatrizMapa[iX, 10] then
+      write(#202, #205)   { -- Encaixe perfeito! }
+    else
+      write(#205, #205);  { -- Moldura contínua }
+  end;
+
+  // 3. Paredes Laterais
+  for iY := 1 to 10 do
+  begin
+    // Parede Esquerda (Coluna 1 da tela)
+    gotoxy(1, iY + 1);
+    if MatrizMapa[1, iY] then
+      write(#204)  { ¦ }
+    else
+      write(#186); { ¦ }
+
+    // Parede Direita (Coluna 22 da tela)
+    gotoxy(22, iY + 1);
+    if MatrizMapa[10, iY] then
+      write(#185)  { ¦ }
+    else
+      write(#186); { ¦ }
+  end;
 end;
 
 procedure DesenharMapa;    
@@ -138,9 +250,9 @@ begin
 		begin
 		for x := 1 to 10 do
 			begin
-				gotoxy ((x* 2),y);
+				IrPara(x,y);
 				if MatrizMapa[x,y] then      //Checa se a coordenada é TRUE
-					write (sParede, sParede)
+					write (Parede(x,y))
 				else 
 					write (sVazio);
 			end;
@@ -172,95 +284,63 @@ end;
  
 procedure MoverPersonagem;
 var
-Ny, Wx, Sy, Ex : integer;
-label
-desv_W, desv_A, desv_S, desv_D;
-
-begin
-  Ny := B_y - 1;
-  Wx := B_x - 1;
-  Sy := B_y + 1;
-  Ex := B_x + 1;
-	
-	gotoxy (1,13);
-  write ('MOVA O PERSONAGEM (A < W ^ S v D >)');
-  cOpc := readkey; 
-  gotoxy(B_x*2,B_y);
-  write (sBoneco);
-  gotoxy(25,2);                                                               
-  write ('x ', B_x, ' y ', B_y);
+	iModX, iModY : integer;
+begin	
+	{gotoxy (1,13);
+  write ('MOVA O PERSONAGEM (A < W ^ S v D >)');  } 
+  {gotoxy(B_x*2,B_y);
+  write (sBoneco); }
+  {gotoxy(25,2);   
+  write ('x ', B_x, ' y ', B_y);}
+  
+	iModX := 0;
+	iModY := 0;
+	  
+	cOpc := readkey;
   if cOpc = #0 then       //se for uma seta
   cOpc:= readkey;
   case cOpc of                                         //Recebe comandos de movimento do personagem
   	'w', 'W', #72{seta pra cima} :
     begin
-      if (Ny <= 10) and (Ny >= 1) and (MatrizMapa[B_x, Ny] = false) then //Checa se o lugar que o jogador quer ir está vazio
-      begin
-      	gotoxy(B_x*2,B_y);
-    		write(sVazio);
-        B_y := Ny;        //Seta as coordenadas do jogador pra N
-        gotoxy(1,14);
-				writeln ('        ')
-      end
-      else 
-			begin
-				gotoxy(1,14);
-				writeln ('Parede')
-			end;
+      iModX := 0;
+      iModY := -1;
     end;
     
     'a', 'A', #75{seta pra esquerda} :
     begin
-      if (Wx <= 10) and (Wx >= 1) and (MatrizMapa[Wx, B_y] = false) then //Checa se o lugar que o jogador quer ir está vazio
-      begin
-      	gotoxy(B_x*2,B_y);
-    		write(sVazio);
-        B_x := Wx;         //Seta as coordenadas do jogador pra N
-        gotoxy(1,14);
-				writeln ('        ')
-      end
-      else 
-			begin
-				gotoxy(1,14);
-				writeln ('Parede')
-			end;
+    	iModX := -1;
+      iModY := 0;  
     end;
     
     's', 'S', #80{seta pra baixo}:
     begin
-      if (Sy <= 10) and (Sy >= 1) and (MatrizMapa[B_x, Sy] = false) then //Checa se o lugar que o jogador quer ir está vazio
-      begin
-      gotoxy(B_x*2,B_y);
-    	write(sVazio);
-        B_y := Sy;        //Seta as coordenadas do jogador pra N
-        gotoxy(1,14);
-				writeln ('        ')
-      end
-      else 
-			begin
-				gotoxy(1,14);
-				writeln ('Parede')
-			end;
+      iModX := 0;
+      iModY := 1;
     end;
     
     'd', 'D', #77 {seta para direita} :
     begin
-      if (Ex <= 10) and (Ex >= 1) and (MatrizMapa[Ex, B_y] = false) then //Checa se o lugar que o jogador quer ir está vazio
+      iModX := 1;
+      iModY := 0;
+    end;
+  end;  
+  
+  if (B_x + iModX <= 10) and (B_x + iModX >= 1) and (B_y + iModY <= 10) and (B_y + iModY >= 1) and (MatrizMapa[B_x + iModX, B_y + iModY] = false) then //Checa se o lugar que o jogador quer ir está vazio
       begin
-      gotoxy(B_x*2,B_y);
-    	write(sVazio);
-        B_x := Ex;        //Seta as coordenadas do jogador pra N
-        gotoxy(1,14);
-				writeln ('        ')
+      	IrPara(B_x,B_y);
+    		write(sVazio);
+    		B_x := B_x + iModX;
+        B_y := B_y + iModY;
+        {gotoxy(1,14);
+				writeln ('        ')   }
       end
       else 
 			begin
-				gotoxy(1,14);
+				IrPara(1,14);
 				writeln ('Parede')
-			end;
-    end;
-  end;
-  gotoxy (B_x*2, B_y);
+			end;	
+				
+  IrPara(B_x, B_y);
   write (sBoneco);
 end;
 
@@ -270,10 +350,10 @@ begin
   readln (sBoneco);
   sBoneco := sBoneco[1];  
 end;
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 Begin
 	SEED := '2ho63iea06dk359o62go1102';  
-	sParede := #219;
+	{sParede := #219;}
 	sVazio := '  ';
 	sNeblina:= #178;
 	B_x := transformar0em10(SEED[21]);
@@ -283,11 +363,12 @@ Begin
 	
 	SelecaoDePersonagem;
 	clrscr;
-	{DesenharMoldura;   }
+	   
 	GerarMatrizBOOLEAN;
 
 	DesenharMapa;	
-	gotoxy(B_x*2,B_y);
+	DesenharMoldura;
+	IrPara(B_x,B_y);
 	write(sBoneco);
 	repeat 
 	MoverPersonagem;
